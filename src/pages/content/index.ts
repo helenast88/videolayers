@@ -6,3 +6,5 @@ console.log("content loaded");
  */
 import("@src/models/init");
 import("./main");
+// VideoLayer: the site's pack (src/videolayer)
+import("@src/videolayer/init");

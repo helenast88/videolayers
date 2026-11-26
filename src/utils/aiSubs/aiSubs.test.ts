@@ -75,7 +75,7 @@ describe("describeAiStatus", () => {
 
   it("points protected video to listening to the tab", () => {
     expect(describeAiStatus({ whisper: "", audio: "no audio from the video: not supported with EME" }, 0)).toMatch(
-      /Listen to this tab/,
+      /Make subtitles from the tab's sound/,
     );
     expect(describeAiStatus({ whisper: "no speech models: The speech models need Chrome", audio: "" }, 0)).toBe(
       "Can't run the speech model here: The speech models need Chrome",

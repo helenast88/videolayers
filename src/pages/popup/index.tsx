@@ -1,4 +1,6 @@
 import { createRoot } from "react-dom/client";
+// VideoLayers: Inter, shipped with the extension (OFL-1.1)
+import "@fontsource-variable/inter";
 import "@pages/popup/index.scss";
 import Popup from "@pages/popup/Popup";
 import refreshOnUpdate from "virtual:reload-on-update-in-view";

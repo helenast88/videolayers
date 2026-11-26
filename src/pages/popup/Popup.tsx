@@ -1,4 +1,7 @@
 import { useState } from "react";
+import SitePacks from "./SitePacks";
+import Credits from "./Credits";
+import TabListening from "./TabListening";
 
 async function getTab() {
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -36,69 +39,32 @@ const Popup = () => {
     }
   };
 
-  // The spoken-word experiment hears the tab, DRM-protected video included: chrome.tabCapture works only from a click
-  // on the extension, like this one (src/pages/background/audio.ts)
-  const [listening, setListening] = useState(false);
-  const [listenStatus, setListenStatus] = useState<string | null>(null);
-  const handleListen = async () => {
-    const tab = await getTab();
-    if (listening) {
-      await chrome.runtime.sendMessage({ type: "stopTabCapture", tabId: tab.id });
-      setListening(false);
-      setListenStatus(null);
-      return;
-    }
-    const granted = await chrome.permissions.request({ permissions: ["tabCapture"] });
-    if (!granted) return;
-    const answer = await chrome.runtime.sendMessage({ type: "startTabCapture", tabId: tab.id });
-    setListening(!answer?.error);
-    setListenStatus(answer?.error ? `Can't listen: ${answer.error}` : "Listening to this tab");
-  };
-
-  const handleFaqLinkClick = () => {
-    const faqUrl = "https://easysubs.cc/en/faq/";
-    chrome.tabs.create({ url: faqUrl });
-  };
+  // VideoLayer: no links to EasySubs' site, FAQ or support; what it's made with is on the Credits page
+  const [creditsOpen, setCreditsOpen] = useState(false);
+  if (creditsOpen) {
+    return (
+      <div className="content">
+        <div className="header">VideoLayers</div>
+        <Credits onBack={() => setCreditsOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="content">
-      <div className="header">Easysubs</div>
+      <div className="header">VideoLayers</div>
+      <SitePacks />
+      <TabListening />
+      <button type="button" className="vl-enable" onClick={handleRequestPermissions}>
+        Enable on this site
+      </button>
       <menu>
-        <li>
-          <a target="_blank" href="https://easysubs.cc" rel="noreferrer">
-            Home
-          </a>
-        </li>
-        <li onClick={handleRequestPermissions}>
-          <a className="es-popup-kinopub">Enable on this site</a>
-        </li>
-        {chrome.offscreen && (
-          <li onClick={handleListen}>
-            <a>{listening ? "Stop listening to this tab" : "Listen to this tab"}</a>
-          </li>
-        )}
-        {listenStatus && <li className="es-popup-status">{listenStatus}</li>}
-        <li onClick={handleFaqLinkClick}>
-          <a>FAQ</a>
-        </li>
-        <li>
-          <a target="_blank" href="https://github.com/Nitrino/easysubs" rel="noreferrer">
-            Github
-          </a>
-        </li>
-        <li>
-          <a target="_blank" href="https://github.com/Nitrino/easysubs/issues" rel="noreferrer">
-            Report bugs
-          </a>
-        </li>
-        <li>
-          <a target="_blank" href="https://github.com/Nitrino/easysubs/issues" rel="noreferrer">
-            Suggest features
-          </a>
-        </li>
-        <li>
-          <a target="_blank" href="https://t.me/easysubs_ext" rel="noreferrer">
-            Support chat
+        <li onClick={() => setCreditsOpen(true)}>
+          <a className="vl-credits-link">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20.5s-7.5-4.6-9.4-9.3C1.4 8.2 3.3 4.5 6.9 4.5c2.1 0 3.6 1.2 5.1 3 1.5-1.8 3-3 5.1-3 3.6 0 5.5 3.7 4.3 6.7-1.9 4.7-9.4 9.3-9.4 9.3Z" />
+            </svg>
+            Credits
           </a>
         </li>
       </menu>

@@ -20,7 +20,8 @@ import {
 import { $video } from "@src/models/videos";
 import { $aiSubsLanguage } from "@src/models/settings";
 import { AI_SUBS_LANGUAGES } from "@src/utils/aiSubs/languages";
-import { describeAiStatus, formatTime } from "@src/utils/aiSubs/status";
+import { describeAiStatus, formatTime, isAudioProtected, TAB_LISTEN_EXPLAINED } from "@src/utils/aiSubs/status";
+import { InfoNote } from "@src/videolayer/InfoNote";
 import { Select } from "../ui/Select";
 
 type TSourceOption = { value: string; label: string; hint?: string; tag?: string };
@@ -149,7 +150,11 @@ const AiSubsCard: FC = () => {
           onChange={(option: { value: string }) => aiLanguagePicked(option.value)}
         />
       </div>
-      <div className="es-source-card__timing es-ai-subs__status">{describeAiStatus(status, captions.length)}</div>
+      <div className="es-source-card__timing es-ai-subs__status">
+        {describeAiStatus(status, captions.length)}
+        {/* VideoLayers: why the tab's sound, and why from the toolbar */}
+        {isAudioProtected(status) && <InfoNote label="Why listen to the tab">{TAB_LISTEN_EXPLAINED}</InfoNote>}
+      </div>
       {until !== null && (
         <div className="es-source-card__timing es-ai-subs__until">Transcribed up to {formatTime(until)}</div>
       )}

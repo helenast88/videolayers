@@ -1,0 +1,125 @@
+// VideoLayers on the page: the (i) note (src/videolayer/InfoNote.tsx) in EasySubs' settings, in its own tokens
+.es-ai-subs__status .vl-info {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--es-secondary);
+  vertical-align: -4px;
+  cursor: pointer;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  &:hover,
+  &[aria-expanded="true"] {
+    color: var(--es-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--es-primary);
+    outline-offset: 1px;
+  }
+}
+
+.es-ai-subs__status .vl-info-text {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--es-fill);
+  color: var(--es-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+// The exercise bar over the video (src/videolayer/exercise.ts): shown while the pointer is over the player or the video
+// is paused, in WebEmber's look on a dark glass
+.vl-exercise {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  corner-shape: squircle;
+  background: rgba(22, 22, 22, 0.78);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: #f2f2f2;
+  font: 500 13px/1 "Inter Variable", Inter, system-ui, sans-serif;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-4px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+
+  *:hover > &,
+  &[data-paused],
+  &:focus-within {
+    opacity: 1;
+    transform: translateX(-50%);
+    pointer-events: auto;
+  }
+}
+
+.vl-exercise__button {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  corner-shape: squircle;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #f2f2f2;
+    outline-offset: 1px;
+  }
+
+  &[aria-pressed="true"] {
+    background: #f2f2f2;
+    color: #161616;
+  }
+}
+
+.vl-exercise__button--main {
+  background: #f2f2f2;
+  color: #161616;
+  font-weight: 600;
+
+  &:hover {
+    background: #ffffff;
+  }
+}
+
+.vl-exercise__speeds {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+
+  .vl-exercise__button {
+    padding: 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+}

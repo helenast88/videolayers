@@ -1,140 +1,63 @@
-<p align="center">
-  <img height="80" src="./logo.png">
+# VideoLayers
+
+**Your video player, your way.** A free, open-source Chrome extension: on a video you pick a **pack**, a set of
+features for what you're watching it for. Use a ready one, or put together your own.
+
+<p>
+  <img src="docs/screens/popup-list-light.png" width="280" alt="The VideoLayers window: packs for the site, New pack, Enable on this site, Credits">
+  &nbsp;
+  <img src="docs/screens/sport-exercise-bar.jpg" width="520" alt="The Sport pack's bar over a video: Start 0:20, Back to start, speeds 0.25× to 1×">
 </p>
-<p align="center">
-  <h2 align="center">Learn languages with fun 🎉</h2>
-</p>
 
-Browser extension to learn languages by watching movies and TV shows.
+## Packs
 
-## Installation
+| Pack | What it does |
+|---|---|
+| **Language** | Two subtitle lines (the original and your language), jump to the previous or next phrase with ← →, repeat a phrase with ↓ |
+| **Sport** | A bar over the video: mark where an exercise starts, jump back to it, slow down to 0.25× |
+| **Your own** | **New pack…** in the window: name it, tick the features, change or delete it any time |
 
-The extension supports Chrome and Chrome-based browsers. It should also work in other browsers that have WebExtensions API support, but it hasn't been tested yet.
+A pack is picked per site: one on YouTube, another on a course site, none somewhere else.
 
-**Release version available on [Chrome Web Store](https://chrome.google.com/webstore/detail/easysubs/ocelmccppkcibiflhhepafdjjomimddf?utm_source=github&utm_medium=social&utm_campaign=github)**
+Features a pack can switch: second line, phrase keys, pause after each phrase, phrase strip, the site's captions,
+exercise controls.
 
-<a href="https://chrome.google.com/webstore/detail/easysubs/ocelmccppkcibiflhhepafdjjomimddf?utm_source=github&utm_medium=social&utm_campaign=github" target="_blank">
-  <img src="./chrome-store.png" alt="chrome store" width="220px">
-</a>
+## Install
 
-## Build
+1. Download `videolayers.zip` from the [latest release](https://github.com/helenast88/videolayers/releases/latest)
+   and unzip it.
+2. Open `chrome://extensions`, turn on **Developer mode** and click **Load unpacked**. Pick the unzipped folder.
+3. Open a video, click the VideoLayers icon and pick a pack.
 
-1. Install node 20+
-2. Clone repo `git clone git@github.com:Nitrino/easysubs.git`
-3. Go to folder and install dependencies `cd easysubs && pnpm i`
-4. Build extension `pnpm build`
+It runs on YouTube, Netflix, Coursera and a few more; on another site click **Enable on this site** in the
+window.
 
-## Playground and tests
+Or build it yourself: Node 20+, then `npx pnpm@10 install` and `npx pnpm@10 build`; the extension is in `dist/`.
 
-`pnpm playground` opens http://localhost:5180: a local video player with sample subtitles that runs the extension code
-from `src/` with hot reload, so features can be tried without building the extension or opening a streaming service.
-The Inspector window switches between live translation services and an offline mock, loads your own video and subtitle files,
-and logs every message sent to the background script.
+## Next
 
-Its Screenshot section makes marketing images with a transparent background: pick a size (player only, Chrome Web
-Store, marquee, website, social), a window or full-bleed frame, the scale and whether to show the player controls, then press Capture or ⌥S. ⌥S keeps
-a hovered word's translation open. The dev server renders the page in headless Chromium at the exact size and saves
-the PNG to `playground/screenshots/`.
+- Gesture control for Sport: pause, back to start, slow down with your hand, through the camera, all on your
+  computer
+- Reader mode: a video turned into a page of text, the phrase being said lit up
+- Voice commands
+- Your own player skins on any site, so the skins people made for the Video.js challenge can live on every video
+  they watch
 
-For screenshots on real footage, `pnpm playground:movies` downloads the open movie
-[Sprite Fright](https://studio.blender.org/films/sprite-fright/) with English, Russian, Spanish and German subtitles;
-pick it in the Inspector's Video menu. It's licensed CC BY 4.0: credit "Sprite Fright © Blender Studio, CC BY 4.0"
-next to published images.
+## Contribute
 
-The offline mock translates the playground's subtitles from `playground/fixtures/translations` (every direction
-between English, Russian, Spanish and German), so screenshots and tests show real translations without network access.
-After subtitles change, `pnpm playground:translations --write-missing` lists the words and lines to translate.
+Ideas for packs and skins, bugs, pull requests: all welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-`pnpm test:e2e` runs the Playwright tests from `e2e/` against the playground (offline mock, no build needed);
-`pnpm test:e2e:ui` opens them in Playwright's UI mode. Run `pnpm exec playwright install chromium` once beforehand.
-`pnpm test` runs the Vitest unit tests of the models, utils, learning services and background script. See
-[TESTING.md](TESTING.md) for both suites.
+## Credits
 
-## Manual install
+- [EasySubs](https://github.com/Nitrino/easysubs) by Nitrino and contributors (MIT): subtitles, the second line,
+  translation and phrase navigation. VideoLayers is a fork of it; its README is in
+  [docs/EASYSUBS-README.md](docs/EASYSUBS-README.md).
+- [Chrome extension boilerplate](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) by
+  Seo Jong Hak (MIT): the build setup, through EasySubs.
+- The [Video.js Skins Design Challenge](https://contra.com/community/topic/videojsskinschallenge) on Contra, by
+  Video.js and Mux: where the idea of a player for every use case came from.
+- [Inter](https://rsms.me/inter/) by Rasmus Andersson (OFL-1.1).
 
-1. Download and unzip [latest version](https://github.com/Nitrino/easysubs/releases)
-2. Open extensions page in browser:
-   - For Chrome: `chrome://extensions/`
-   - For Yandex browser: `browser://tune/`
-3. Turn on developer mode (for all except Yandex browser)
-4. Load unpacked extension:
-   - For Chrome and Opera: Click to `Load unpacked` button and select folder
-   - For Firefox: Click to `Load temporary Add-on...` button and select folder
-   - For Yandex browser: Drag and drop folder to extensions page
+## License
 
-## Features
-
-### Integration with multiple video services
-
-The list of services will expand at the request of users.  
-To use the plugin, you must have a subscription to the desired service.
-
-**Now supported:**
-
-- [Youtube (videos and originals)](https://www.youtube.com)
-- [Netflix](https://www.netflix.com)
-- [KinoPub](https://kino.watch)
-- [Coursera](https://www.coursera.org)
-
-### Word and full subtitle translation
-
-Simply move the cursor over the word you want to translate. The video will automatically pause and resume when you move the cursor away from the subtitles.  
-In the translation pop-up for the word, you can see alternative translations and how often they are used.
-Click the subtitles to translate the entire phrase.
-
-![word translation](screenshots/word.webp)
-
-### Export words to learning services
-
-The list of services will be extended in response to user requests.
-
-**Now supported:**
-
-- [Anki](https://apps.ankiweb.net/),
-- [LinguaLeo](https://lingualeo.com),
-- [Puzzle English](https://puzzle-english.com)
-
-To export, you'll need to be logged in to the service you want to use (make sure it's the same browser). Then select the service you want to use in the extension settings.
-
-A ➕(plus) icon will then appear next to the words in the translation, and clicking on it will export the word to the selected service.
-
-![word translation](screenshots/export-to-service.webp)
-
-### Rewind to previous and next subtitle
-
-Rewind to the previous sentence by pressing ⬅️ (left arrow).  
-Rewind to the next sentence by pressing ➡️ (right arrow).
-Repeat the current subtitle ⬇ (down arrow).
-
-Rewind only works if the next/previous sentence is less than 5 seconds apart from the current sentence. Otherwise it'll rewinds 5 seconds.  
-To force rewinding to the next/previous sentence use `alt (option for macOS) + arrow button`.
-
-![word translation](screenshots/navigation.png)
-
-### Subtitle progress bar
-
-There is a subtitle progress bar at the bottom of the player to help you navigate between subtitles.  
-Click the progress bar to rewind the video to the desired point.
-
-![word translation](screenshots/progressbar.webp)
-
-### Subtitle settings and custom subtitles
-
-The extension allows you to customise the appearance, position and delay of subtitles.
-
-If the subtitles are out of sync, press `G` to show them earlier or `H` to show them later by 0.25 seconds. Hold `Shift` to move them by a whole second.
-
-You can also upload your own subtitles if they are not available on the video service. ` SRT`` and  `VTT`` formats are supported.
-
-![word translation](screenshots/subtitles-settings.webp)
-
-### Additional features
-
-- Show all available audio tracks and subtitles on Netflix regardless of region.
-
-## Contributing
-
-We are open to community help.  
-To report a bug or feature offer, create [issue](https://github.com/Nitrino/easysubs/issues) and describe the question in detail.
-
-You can also implement the desired feature and send a [pull request](https://github.com/Nitrino/easysubs/pulls). We recommend discussing the feature in issues tracker before implementation. This will help reduce your time.
+MIT, see [LICENSE](LICENSE).

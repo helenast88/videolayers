@@ -59,16 +59,9 @@ beforeEach(() => {
 });
 
 describe("background: installation", () => {
-  it("opens the onboarding page after installation", () => {
+  // VideoLayer opens no EasySubs onboarding page
+  it("opens no page after installation or an update", () => {
     dispatchInstalled("install");
-
-    expect(chromeMock.tabs.create).toHaveBeenCalledWith(
-      { url: "https://easysubs.cc/onboarding/" },
-      expect.any(Function),
-    );
-  });
-
-  it("doesn't open it after an update", () => {
     dispatchInstalled("update");
 
     expect(chromeMock.tabs.create).not.toHaveBeenCalled();

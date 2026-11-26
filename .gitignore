@@ -20,3 +20,6 @@ blob-report
 # Dictionaries built by pnpm dictionaries and models mirrored by pnpm bergamot-models, attached to GitHub releases
 /dictionaries
 /bergamot-models
+
+# Local preview servers of this machine
+.claude/launch.json

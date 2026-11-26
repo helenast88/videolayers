@@ -40,15 +40,7 @@ reloadOnUpdate("pages/content/style.scss");
 
 console.log("background loaded");
 
-chrome.runtime.onInstalled.addListener(function (object) {
-  const onboardingUrl = "https://easysubs.cc/onboarding/";
-
-  if (object.reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    chrome.tabs.create({ url: onboardingUrl }, function () {
-      console.log("New tab launched with options page");
-    });
-  }
-});
+// VideoLayer: no EasySubs onboarding page on install (it was https://easysubs.cc/onboarding/)
 
 const findExpressionsInCues = createExpressionFinder();
 const frequency = createFrequencyLookup();

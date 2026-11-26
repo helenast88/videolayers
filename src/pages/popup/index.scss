@@ -1,104 +1,526 @@
-// The toolbar popup as a macOS menu: rounded rows with an accent highlight that follows the
-// pointer, following the system light/dark appearance.
+// The toolbar popup in WebEmber's look: monochrome, one black accent, pills and squircles, soft wide shadows, Inter
+// (shipped, see index.tsx); follows the system light/dark appearance.
 
 :root {
-  color-scheme: light dark;
-  --bg: #f2f2f4;
-  --label: rgba(0, 0, 0, 0.85);
-  --secondary: rgba(0, 0, 0, 0.5);
-  --separator: rgba(0, 0, 0, 0.1);
-  --accent: #007aff;
-  --accent-text: #0062cc;
+  color-scheme: light;
+  --ink: #1a1a1a;
+  --ink-2: #5c5c5c;
+  --ink-3: #6e6e6e;
+  --bg: #ffffff;
+  --surface: #f4f4f4;
+  --surface-2: #ebebeb;
+  --line: #e6e6e6;
+  --line-strong: #d4d4d4;
+  --accent: #1a1a1a;
+  --accent-ink: #ffffff;
+  --danger: #b42318;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
+  --r-sm: 12px;
+  --r-md: 22px;
+  // Cards and buttons share one squircle corner; the pack rows have their own, smaller one
+  --r-card: 22px;
+  --r-pack: 12px;
+  --pill: 9999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #262628;
-    --label: rgba(255, 255, 255, 0.88);
-    --secondary: rgba(255, 255, 255, 0.55);
-    --separator: rgba(255, 255, 255, 0.12);
-    --accent: #0a84ff;
-    --accent-text: #409cff;
+    color-scheme: dark;
+    --ink: #f2f2f2;
+    --ink-2: #b5b5b5;
+    --ink-3: #9a9a9a;
+    --bg: #161616;
+    --surface: #222222;
+    --surface-2: #2c2c2c;
+    --line: #272727;
+    --line-strong: #3b3b3b;
+    --accent: #f2f2f2;
+    --accent-ink: #121212;
+    --danger: #ff8b7d;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
-  width: 220px;
+  width: 280px;
   margin: 0;
-  padding: 5px;
-  font:
-    400 13px/1.25 -apple-system,
-    BlinkMacSystemFont,
-    "SF Pro Text",
-    "Segoe UI",
-    "Roboto",
-    "Oxygen",
-    "Ubuntu",
-    "Cantarell",
-    "Fira Sans",
-    "Droid Sans",
-    "Helvetica Neue",
-    sans-serif;
+  padding: 10px;
+  font: 400 13px/1.4 var(--font-ui);
   background: var(--bg);
-  color: var(--label);
+  color: var(--ink);
   cursor: default;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-user-select: none;
   user-select: none;
-
   position: relative;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .header {
-  position: relative;
-  padding: 6px 10px 10px;
-  font-size: 13px;
+  padding: 4px 8px 12px;
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: -0.02em;
+}
 
-  &::after {
-    content: "";
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 0;
-    border-bottom: 1px solid var(--separator);
+// ---------- packs (SitePacks.tsx) ----------
+
+.vl-packs,
+.vl-editor {
+  padding: 6px;
+  border-radius: var(--r-card);
+  corner-shape: squircle;
+  background: var(--surface);
+}
+
+.vl-packs-title {
+  padding: 6px 8px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+
+  span {
+    color: var(--ink);
+    letter-spacing: 0;
+    text-transform: none;
   }
 }
 
+.vl-pack-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vl-pack {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-pack);
+  corner-shape: squircle;
+  background: none;
+  text-align: left;
+  cursor: default;
+  transition: background 0.2s var(--ease-out);
+
+  &:hover {
+    background: var(--surface-2);
+  }
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+
+  &[aria-checked="true"] {
+    background: var(--bg);
+    box-shadow:
+      0 0 0 1px var(--line),
+      var(--shadow);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+// A round mark; filled black with a tick when it's the site's pack
+.vl-pack-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: var(--pill);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 600;
+
+  svg {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+[aria-checked="true"] .vl-pack-dot {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.vl-pack-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vl-pack-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vl-pack-description {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.vl-edit {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-card);
+  corner-shape: squircle;
+  background: none;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+}
+
+.vl-new {
+  margin-top: 2px;
+  align-items: center;
+
+  // A squircle with the plus drawn in its middle
+  .vl-pack-dot {
+    margin-top: 0;
+    border-radius: 6px;
+    box-shadow: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+
+    @supports (corner-shape: squircle) {
+      border-radius: 50%;
+      corner-shape: squircle;
+    }
+
+    svg {
+      display: block;
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  .vl-pack-name {
+    font-weight: 500;
+  }
+}
+
+// ---------- the pack editor ----------
+
+.vl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+
+  input {
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--pill);
+    background: var(--bg);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+    -webkit-user-select: text;
+    user-select: text;
+
+    &::placeholder {
+      color: var(--ink-3);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--ink);
+    }
+  }
+}
+
+.vl-features {
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    padding: 0 8px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+}
+
+.vl-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--r-sm);
+
+  input {
+    flex: none;
+    margin: 2px 0 0;
+    accent-color: var(--accent);
+  }
+
+  &:hover {
+    background: var(--surface-2);
+  }
+}
+
+.vl-actions {
+  display: flex;
+  gap: 6px;
+  padding: 12px 8px 4px;
+}
+
+.vl-spacer {
+  flex: 1;
+}
+
+// Buttons: one black, as in WebEmber's Add capture, the others outlined; all with the cards' squircle corner
+.vl-button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-card);
+  corner-shape: squircle;
+  background: transparent;
+  font-weight: 600;
+  transition:
+    transform 0.2s var(--ease-out),
+    opacity 0.2s;
+
+  &:hover {
+    background: var(--surface-2);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+.vl-button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+
+  &:hover {
+    background: var(--accent);
+    opacity: 0.88;
+  }
+}
+
+.vl-button-danger {
+  color: var(--danger);
+}
+
+// ---------- listening to the tab (TabListening.tsx) ----------
+
+.vl-listen {
+  margin-top: 8px;
+  padding: 12px;
+
+  .vl-button {
+    width: 100%;
+    margin-top: 10px;
+  }
+}
+
+// Title and (i) on one line, then why, then the explanation when it's open
+.vl-listen-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 6px;
+  align-items: start;
+
+  .vl-pack-name {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .vl-info {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .vl-listen-why {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    margin: 4px 0 0;
+  }
+
+  .vl-info-text {
+    grid-row: 3;
+    grid-column: 1 / -1;
+  }
+}
+
+// The (i) note (src/videolayer/InfoNote.tsx)
+.vl-info {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pill);
+  background: none;
+  color: var(--ink-3);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover,
+  &[aria-expanded="true"] {
+    color: var(--ink);
+  }
+}
+
+.vl-info-text {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+// ---------- Enable on this site (Popup.tsx) ----------
+
+.vl-enable {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-card);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  corner-shape: squircle;
+  transition:
+    transform 0.2s var(--ease-out),
+    opacity 0.2s;
+
+  &:hover {
+    opacity: 0.88;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+// ---------- credits (Credits.tsx) ----------
+
+.vl-credits-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .vl-packs-title {
+    padding: 0;
+  }
+}
+
+// The heart by Credits in the menu
+.vl-credits-link {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    fill: var(--ink);
+  }
+}
+
+.vl-credit {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+// ---------- the menu (Popup.tsx) ----------
+
 .content {
   menu {
+    margin: 10px 0 0;
     padding: 0;
-    margin: 5px 0 0;
 
     li {
       list-style: none;
-      border-radius: 6px;
-      cursor: default;
+      border-radius: var(--pill);
 
       a {
         display: block;
-        padding: 3px 10px;
-        line-height: 16px;
-        color: inherit;
+        padding: 6px 12px;
+        color: var(--ink-2);
         text-decoration: none;
         cursor: default;
 
         &.es-popup-kinopub {
           font-weight: 600;
-          color: var(--accent-text);
+          color: var(--ink);
         }
       }
 
       &:hover {
-        background: var(--accent);
-        color: #fff;
+        background: var(--surface);
 
-        a,
-        a.es-popup-kinopub {
-          color: #fff;
+        a {
+          color: var(--ink);
         }
       }
+    }
+
+    .es-popup-status {
+      padding: 6px 12px;
+      color: var(--ink-2);
     }
   }
 }

@@ -27,9 +27,10 @@ const MATCHES = [
 const manifest = {
   manifest_version: 3,
   default_locale: "en",
-  name: "__MSG_appName__",
+  name: "VideoLayers",
   version: packageJson.version,
-  description: "__MSG_appDescription__",
+  // VideoLayers: about making the player yours, not about translation (Chrome allows 132 characters)
+  description: "Your video player, your way: pick a pack of features for what you watch, or build your own. Open-source and free.",
   background: {
     service_worker: "src/pages/background/index.js",
     type: "module",
