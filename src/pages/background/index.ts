@@ -27,8 +27,9 @@ import { ollamaModels, ollamaTranslate, ollamaWord } from "@src/utils/ollama";
 import { chatGPTWord } from "@src/utils/chatGPTWord";
 import { yandexWordTimes } from "@src/utils/yandexWordTimes";
 import { openAudioWorker, startTabCapture, stopTabCapture } from "./audio";
-
-import "webext-dynamic-content-scripts";
+import { CONTENT_SITE_REQUEST, siteOf } from "@src/videolayer/sitePacks";
+import { GESTURE_PAGE, OPEN_GESTURES } from "@src/videolayer/gestures";
+import { watchSiteAccess } from "./siteAccess";
 
 reloadOnUpdate("pages/background");
 
@@ -37,6 +38,7 @@ reloadOnUpdate("pages/background");
  * If you do not use the css of the content script, please delete it.
  */
 reloadOnUpdate("pages/content/style.scss");
+watchSiteAccess();
 
 console.log("background loaded");
 
@@ -110,6 +112,34 @@ async function addWordToLingualeo(word: string, translation: string) {
 chrome.runtime.onMessage.addListener(function (message, _sender, sendResponse) {
   console.log("read: ", message);
 
+  if (message.type === CONTENT_SITE_REQUEST) {
+    sendResponse({ site: siteOf(_sender.tab?.url) });
+    return;
+  }
+  if (message.type === OPEN_GESTURES) {
+    if (_sender.tab?.id === undefined || typeof message.token !== "string" || !/^[a-f0-9]{32}$/.test(message.token)) {
+      sendResponse({ ok: false });
+      return;
+    }
+    const target = new URLSearchParams({
+      tab: String(_sender.tab.id),
+      frame: String(_sender.frameId ?? 0),
+      document: _sender.documentId ?? "",
+      token: message.token,
+    });
+    chrome.windows
+      .create({
+        url: chrome.runtime.getURL(GESTURE_PAGE) + "#" + target,
+        type: "popup",
+        width: 360,
+        height: 540,
+      })
+      .then(
+        () => sendResponse({ ok: true }),
+        () => sendResponse({ ok: false }),
+      );
+    return true;
+  }
   if (message.type === "translateWord") {
     googleTranslateBatchFetcher
       .getWordTranslation({ text: message.text, lang: message.language })

@@ -117,6 +117,34 @@ describe("Coursera tracks", () => {
 });
 
 describe("KinoPub tracks", () => {
+  it("uses cues already displayed by Vidstack as soon as the bridge connects", async () => {
+    document.body.innerHTML = '<div id="player"><media-player><video></video></media-player></div>';
+    const kinopub = new KinoPub();
+    const player = document.querySelector("media-player");
+    const native = [{ start: 1000, end: 5000, text: "The player was already showing this line." }];
+    vi.stubGlobal("location", new URL("https://kino.watch/watch/test"));
+    try {
+      kinopub.init();
+      window.dispatchEvent(
+        new CustomEvent("videolayersKinoState", {
+          detail: JSON.stringify({
+            source: "blob:https://kino.watch/test",
+            label: "English",
+            tracks: [{ label: "English", language: "en", kind: "subtitles" }],
+            cues: native,
+          }),
+        }),
+      );
+
+      expect(kinopub.getSubsContainer()).toBe(player);
+      expect(document.body.classList.contains("vl-kinopub-captions")).toBe(true);
+      expect(await kinopub.getSubs("English")).toEqual(native);
+      expect(kinopub.getSettingsButtonContainer().parentElement).toBe(player);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("lists the subtitles of the HLS manifest by the names the player shows", async () => {
     stubFetch({
       "https://cdn.example/master.m3u8": () =>

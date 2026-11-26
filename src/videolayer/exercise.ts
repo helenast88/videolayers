@@ -1,6 +1,7 @@
 // VideoLayers' exercise controls: a small bar over the video to mark where an exercise starts, jump back to that
 // moment, and slow the video down. Shown while the pointer is over the player or the video is paused. Plain DOM, so it
-// costs nothing on pages without it; gestures (the camera) will drive the same actions later.
+// costs nothing on pages without it. Gestures and buttons share the exercise's start and playback speed.
+import { createGestureButton } from "./gestureButton";
 
 export const SPEEDS = [0.25, 0.5, 0.75, 1];
 
@@ -38,7 +39,11 @@ const formatTime = (seconds: number) => {
 
 let mounted: { bar: HTMLElement; cleanup: () => void } | null = null;
 
-export function mountExercise(video: HTMLVideoElement, container: HTMLElement) {
+export function mountExercise(
+  video: HTMLVideoElement,
+  container: HTMLElement,
+  { exercise: showExercise = true, gestures = false } = {},
+) {
   unmountExercise();
   const exercise = createExercise(video);
 
@@ -76,7 +81,31 @@ export function mountExercise(video: HTMLVideoElement, container: HTMLElement) {
     speeds.append(element);
     return { rate, element };
   });
-  bar.append(mark, back, speeds);
+  if (showExercise) bar.append(mark, back, speeds);
+  const gestureButton = gestures
+    ? createGestureButton(
+        (action) => {
+          if (!video.isConnected || document.hidden) return;
+          switch (action) {
+            case "pause":
+              video.pause();
+              break;
+            case "play":
+              video.play().catch(() => {});
+              break;
+            case "back":
+              exercise.backToStart();
+              break;
+            case "slow":
+              exercise.setSpeed(video.playbackRate === 0.5 ? 1 : 0.5);
+              break;
+          }
+          render();
+        },
+        (active) => bar.toggleAttribute("data-gestures-active", active),
+      )
+    : null;
+  if (gestureButton) bar.append(gestureButton.button);
 
   const render = () => {
     mark.textContent = exercise.start === null ? "Mark start" : `Start ${formatTime(exercise.start)}`;
@@ -95,6 +124,7 @@ export function mountExercise(video: HTMLVideoElement, container: HTMLElement) {
 
   const onNewVideo = () => {
     exercise.forget();
+    gestureButton?.stop();
     render();
   };
   video.addEventListener("ratechange", render);
@@ -102,7 +132,21 @@ export function mountExercise(video: HTMLVideoElement, container: HTMLElement) {
   video.addEventListener("pause", render);
   video.addEventListener("emptied", onNewVideo);
 
-  if (getComputedStyle(container).position === "static") container.style.position = "relative";
+  const generic = container.classList.contains("vl-video-overlay");
+  const onPointerMove = (event: PointerEvent) => {
+    const rect = video.getBoundingClientRect();
+    bar.toggleAttribute(
+      "data-hovered",
+      event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom,
+    );
+  };
+  if (generic) document.addEventListener("pointermove", onPointerMove, { passive: true });
+  const position = container.style.position;
+  const adjustPosition = getComputedStyle(container).position === "static";
+  if (adjustPosition) container.style.position = "relative";
   container.append(bar);
   render();
 
@@ -113,6 +157,9 @@ export function mountExercise(video: HTMLVideoElement, container: HTMLElement) {
       video.removeEventListener("play", render);
       video.removeEventListener("pause", render);
       video.removeEventListener("emptied", onNewVideo);
+      document.removeEventListener("pointermove", onPointerMove);
+      if (adjustPosition && container.style.position === "relative") container.style.position = position;
+      gestureButton?.dispose();
       bar.remove();
     },
   };

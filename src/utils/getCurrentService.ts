@@ -4,7 +4,7 @@ import Coursera from "@src/streamings/coursera";
 import Netflix from "@src/streamings/netflix";
 import NetflixOnFlight from "@src/streamings/netflixOnFlight";
 import Service from "@src/streamings/service";
-import ServiceStub from "@src/streamings/serviceStub";
+import GenericVideo from "@src/streamings/genericVideo";
 // import Plex from "@src/streamings/plex";
 // import Udemy from "@src/streamings/udemy";
 // import Kinopoisk from "@src/streamings/kinopoisk";
@@ -12,9 +12,12 @@ import ServiceStub from "@src/streamings/serviceStub";
 import Inoriginal from "@src/streamings/inoriginal";
 import Jellyfin from "@src/streamings/jellyfin";
 
+const generic = new GenericVideo();
+const kinoPub = new KinoPub();
+
 export const getCurrentService = (): Service => {
-  const titleContent = document.querySelector("title")?.textContent;
-  if (titleContent?.includes("YouTube") || window.location.host === "www.youtube.com") {
+  const host = location.hostname;
+  if (host === "www.youtube.com" || host === "www.youtube-nocookie.com") {
     document.querySelector("html")?.setAttribute("id", "youtube");
     if (document.querySelector(".ytp-delhi-modern")) {
       // Add class for new youtube delphi design
@@ -22,7 +25,7 @@ export const getCurrentService = (): Service => {
     }
     return new Youtube();
   }
-  if (titleContent?.includes("Netflix") || window.location.host === "www.netflix.com") {
+  if (host === "www.netflix.com") {
     document.querySelector("html")?.setAttribute("id", "netflix");
     if (document.body.classList.contains("es-netflix-on-flight")) {
       return new NetflixOnFlight();
@@ -41,14 +44,14 @@ export const getCurrentService = (): Service => {
   //   return new Kinopoisk();
   // }
   if (
-    titleContent?.includes("Кинопаб") ||
+    ["kinopub.net", "kinopub.cc", "kino.watch"].includes(host) ||
     document.querySelector('meta[content="Кинопаб"]') != null ||
     window.location.host === "moviesjoy.is"
   ) {
     document.querySelector("html")?.setAttribute("id", "kinopub");
-    return new KinoPub();
+    return kinoPub;
   }
-  if (titleContent?.includes("Coursera") || window.location.host === "www.coursera.org") {
+  if (host === "www.coursera.org") {
     document.querySelector("html")?.setAttribute("id", "coursera");
     return new Coursera();
   }
@@ -72,5 +75,5 @@ export const getCurrentService = (): Service => {
     return new Jellyfin();
   }
 
-  return new ServiceStub();
+  return generic;
 };

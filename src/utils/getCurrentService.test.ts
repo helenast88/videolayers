@@ -14,18 +14,19 @@ describe("getCurrentService", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  it("detects YouTube by the page title and marks the page for its styles", () => {
-    setTitle("Some video - YouTube");
+  it("detects YouTube by its host and marks the page for its styles", () => {
+    vi.stubGlobal("location", new URL("https://www.youtube.com/watch?v=test"));
 
     expect(getCurrentService().name).toBe("youtube");
     expect(document.documentElement.id).toBe("youtube");
   });
 
   it("marks the new YouTube player design", () => {
-    setTitle("Some video - YouTube");
+    vi.stubGlobal("location", new URL("https://www.youtube-nocookie.com/embed/test"));
     document.body.append(Object.assign(document.createElement("div"), { className: "ytp-delhi-modern" }));
 
     getCurrentService();
@@ -33,15 +34,15 @@ describe("getCurrentService", () => {
     expect(document.body.classList).toContain("es-youtube-delphi");
   });
 
-  it("detects Netflix by the page title", () => {
-    setTitle("Netflix");
+  it("detects Netflix by its host", () => {
+    vi.stubGlobal("location", new URL("https://www.netflix.com/watch/test"));
 
     expect(getCurrentService().name).toBe("netflix");
     expect(document.documentElement.id).toBe("netflix");
   });
 
-  it("detects Coursera by the page title", () => {
-    setTitle("Lecture 1 | Coursera");
+  it("detects Coursera by its host", () => {
+    vi.stubGlobal("location", new URL("https://www.coursera.org/learn/test"));
 
     expect(getCurrentService().name).toBe("coursera");
   });
@@ -60,9 +61,9 @@ describe("getCurrentService", () => {
     expect(getCurrentService().name).toBe("jellyfin");
   });
 
-  it("gives the stub on other sites, so detection is retried", () => {
-    setTitle("Some page");
+  it("uses the generic player on other sites, even if they mention a supported platform", () => {
+    setTitle("Why I left YouTube");
 
-    expect(getCurrentService().name).toBe("stub");
+    expect(getCurrentService().name).toBe("generic");
   });
 });

@@ -166,6 +166,16 @@ input {
   }
 }
 
+// Packs are ticked like checkboxes, so their mark is a squircle; "No pack" stays round
+[role="checkbox"] .vl-pack-dot {
+  border-radius: 6px;
+
+  @supports (corner-shape: squircle) {
+    border-radius: 50%;
+    corner-shape: squircle;
+  }
+}
+
 [aria-checked="true"] .vl-pack-dot {
   background: var(--accent);
   box-shadow: none;
@@ -467,8 +477,10 @@ input {
 }
 
 // The heart by Credits in the menu
+// Centred in the window
 .vl-credits-link {
-  display: inline-flex !important;
+  display: flex !important;
+  justify-content: center;
   align-items: center;
   gap: 6px;
 

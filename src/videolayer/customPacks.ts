@@ -1,7 +1,16 @@
-import { describeFeatures, nextPackColor, PACKS, settingsFromFeatures, type TFeatureKey, type TPack } from "./packs";
+import {
+  describeFeatures,
+  isBuiltInPack,
+  nextPackColor,
+  PACKS,
+  settingsFromFeatures,
+  type TFeatureKey,
+  type TPack,
+} from "./packs";
 
-// The user's own packs, kept in one list. The popup's editor writes them; the content script reads them and follows
-// changes, so editing the pack a site uses changes the player there at once.
+// The user's own packs, and the built-in packs they changed (kept under the built-in id), in one list. The popup's
+// editor writes them; the content script reads them and follows changes, so editing the pack a site uses changes the
+// player there at once.
 export const CUSTOM_PACKS_KEY = "videolayer:customPacks";
 
 const isPack = (value: unknown): value is TPack =>
@@ -15,11 +24,22 @@ const isPack = (value: unknown): value is TPack =>
 export const readCustomPacks = async (): Promise<TPack[]> => {
   const result = await chrome.storage.local.get(CUSTOM_PACKS_KEY);
   const value = result[CUSTOM_PACKS_KEY];
-  return Array.isArray(value) ? value.filter(isPack).map((pack) => ({ ...pack, custom: true })) : [];
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(isPack)
+    .map((pack) =>
+      isBuiltInPack(pack.id) ? { ...pack, custom: false, edited: true } : { ...pack, custom: true, edited: false },
+    );
 };
 
-// Built-in packs first, then the user's
-export const readAllPacks = async (): Promise<TPack[]> => [...PACKS, ...(await readCustomPacks())];
+// Built-in packs first, as the user changed them, then the user's own
+export const readAllPacks = async (): Promise<TPack[]> => {
+  const stored = await readCustomPacks();
+  return [
+    ...PACKS.map((pack) => stored.find((one) => one.id === pack.id) ?? pack),
+    ...stored.filter((pack) => !isBuiltInPack(pack.id)),
+  ];
+};
 
 const writeCustomPacks = (packs: TPack[]) => chrome.storage.local.set({ [CUSTOM_PACKS_KEY]: packs });
 
@@ -34,8 +54,10 @@ export const saveCustomPack = async (draft: { id?: string; name: string; feature
     description: describeFeatures(settings),
     settings,
     // A pack keeps its colour when it's changed
-    color: packs[index]?.color ?? nextPackColor([...PACKS, ...packs]),
-    custom: true,
+    color:
+      packs[index]?.color ?? PACKS.find((one) => one.id === draft.id)?.color ?? nextPackColor([...PACKS, ...packs]),
+    custom: !isBuiltInPack(draft.id),
+    edited: isBuiltInPack(draft.id),
   };
   if (index === -1) {
     packs.push(pack);
@@ -46,7 +68,7 @@ export const saveCustomPack = async (draft: { id?: string; name: string; feature
   return pack;
 };
 
-// Sites that used a deleted pack are left with no pack: EasySubs as the user set it up
+// Deletes the user's pack (sites that used it are left without it), or resets a changed built-in pack
 export const deleteCustomPack = async (id: string) => {
   await writeCustomPacks((await readCustomPacks()).filter((pack) => pack.id !== id));
 };

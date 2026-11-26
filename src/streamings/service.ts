@@ -16,6 +16,9 @@ interface Service {
   // The video playing, where the page's address doesn't change between videos; null when unknown
   getVideoKey?: () => string | null;
 
+  getVideo?: () => HTMLVideoElement | null;
+  setSiteCaptions?: (enabled: boolean) => void;
+
   // Captions moved the way the service moves its own (Netflix's ad breaks), for files found online
   adjustCaptions?: (captions: Captions) => Captions;
 

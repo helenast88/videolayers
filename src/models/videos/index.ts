@@ -8,7 +8,10 @@ import { $streaming } from "../streamings";
 const TIME_SEEK_TIME = 5000;
 
 export const $video = createStore<HTMLVideoElement | null>(null);
-export const getCurrentVideoFx = createEffect<void, HTMLVideoElement>(() => document.querySelector("video"));
+export const getCurrentVideoFx = createEffect<void, HTMLVideoElement | null>(() => {
+  const streaming = $streaming.getState();
+  return streaming.getVideo ? streaming.getVideo() : document.querySelector("video");
+});
 export const videoTimeUpdate = createEvent<void>();
 
 export const $wasPaused = createStore<boolean>(false);
@@ -16,7 +19,6 @@ export const wasPausedChanged = createEvent<boolean>();
 $wasPaused.on(wasPausedChanged, (_, wasPaused) => wasPaused);
 
 $video.on(getCurrentVideoFx.doneData, (_, video) => video);
-getCurrentVideoFx.use(async () => document.querySelector("video")!);
 
 type TMoveFX = {
   video: StoreValue<typeof $video>;

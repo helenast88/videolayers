@@ -8,6 +8,7 @@ import watchRebuild from "./utils/plugins/watch-rebuild.ts";
 import inlineVitePreloadScript from "./utils/plugins/inline-vite-preload-script.ts";
 import copyOnnxRuntime from "./utils/plugins/copy-onnx-runtime.ts";
 import copyBergamot from "./utils/plugins/copy-bergamot.ts";
+import copyMediaPipe from "./utils/plugins/copy-mediapipe.ts";
 
 const rootDir = resolve(import.meta.dirname);
 const srcDir = resolve(rootDir, "src");
@@ -45,6 +46,7 @@ export default defineConfig({
     inlineVitePreloadScript(),
     copyOnnxRuntime(outDir),
     copyBergamot(outDir),
+    copyMediaPipe(outDir),
   ],
   publicDir,
   build: {
@@ -62,6 +64,7 @@ export default defineConfig({
         contentStyle: resolve(pagesDir, "content", "style.scss"),
         popup: resolve(pagesDir, "popup", "index.html"),
         offscreen: resolve(pagesDir, "offscreen", "index.html"),
+        gestures: resolve(pagesDir, "gestures", "index.html"),
       },
       output: {
         minify: isProduction

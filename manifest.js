@@ -1,14 +1,13 @@
 import fs from "node:fs";
 const packageJson = JSON.parse(fs.readFileSync("./package.json", "utf8"));
+const KINO_MATCHES = ["https://kinopub.net/*", "https://kino.watch/*", "https://kinopub.cc/*"];
 
 // The streaming services EasySubs runs on
 const MATCHES = [
   "https://www.netflix.com/*",
   "https://www.youtube.com/*",
   "https://www.coursera.org/*",
-  "https://kinopub.net/*",
-  "https://kino.watch/*",
-  "https://kinopub.cc/*",
+  ...KINO_MATCHES,
   "https://app.plex.tv/*",
   "https://plex.ukrapka.tech/*",
   "https://www.udemy.com/course/*/learn/lecture/*",
@@ -30,7 +29,8 @@ const manifest = {
   name: "VideoLayers",
   version: packageJson.version,
   // VideoLayers: about making the player yours, not about translation (Chrome allows 132 characters)
-  description: "Your video player, your way: pick a pack of features for what you watch, or build your own. Open-source and free.",
+  description:
+    "Your video player, your way: pick a pack of features for what you watch, or build your own. Open-source and free.",
   background: {
     service_worker: "src/pages/background/index.js",
     type: "module",
@@ -56,6 +56,13 @@ const manifest = {
       js: ["src/pages/contentInjected/index.js"],
       // KEY for cache invalidation
       css: ["assets/css/contentStyle<KEY>.chunk.css"],
+      all_frames: true,
+    },
+    {
+      matches: KINO_MATCHES,
+      js: ["assets/js/kinopub.js"],
+      world: "MAIN",
+      all_frames: true,
     },
     // Copies the audio players append to Media Source Extensions while the spoken-word experiment listens ahead
     // (src/audio/readAhead.ts); it has to patch MediaSource before the player starts
@@ -64,6 +71,7 @@ const manifest = {
       js: ["assets/js/mseTap.js"],
       run_at: "document_start",
       world: "MAIN",
+      all_frames: true,
     },
   ],
   // unlimitedStorage: found subtitle files, translations, dictionaries and translation models are kept on the device

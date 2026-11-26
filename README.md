@@ -14,13 +14,13 @@ features for what you're watching it for. Use a ready one, or put together your 
 | Pack | What it does |
 |---|---|
 | **Language** | Two subtitle lines (the original and your language), jump to the previous or next phrase with ← →, repeat a phrase with ↓ |
-| **Sport** | A bar over the video: mark where an exercise starts, jump back to it, slow down to 0.25× |
+| **Sport** | Mark where an exercise starts, jump back to it, slow down to 0.25×, or control playback with hand gestures |
 | **Your own** | **New pack…** in the window: name it, tick the features, change or delete it any time |
 
 A pack is picked per site: one on YouTube, another on a course site, none somewhere else.
 
 Features a pack can switch: second line, phrase keys, pause after each phrase, phrase strip, the site's captions,
-exercise controls.
+exercise controls, hand gestures.
 
 ## Install
 
@@ -29,15 +29,19 @@ exercise controls.
 2. Open `chrome://extensions`, turn on **Developer mode** and click **Load unpacked**. Pick the unzipped folder.
 3. Open a video, click the VideoLayers icon and pick a pack.
 
-It runs on YouTube, Netflix, Coursera and a few more; on another site click **Enable on this site** in the
-window.
+On a new site, click **Enable on this site** and allow access to use packs on its HTML5 video player. Language
+can use the video's subtitle tracks or a subtitle file. Embedded players need site access for the frame's
+origin. For a third-party embed, open the player's page and enable VideoLayers there as well.
+
+To use gestures, select **Sport**, click **Gestures** on the video, then click **Start camera** in the window
+that opens. Hold an open palm to pause, give a thumbs-up to play, show two fingers in a V to go back to the
+start, or make a fist to switch between 0.5× and 1×. Use **Stop camera** or close the gesture window when
+you're done. MediaPipe processes the camera on your device.
 
 Or build it yourself: Node 20+, then `npx pnpm@10 install` and `npx pnpm@10 build`; the extension is in `dist/`.
 
 ## Next
 
-- Gesture control for Sport: pause, back to start, slow down with your hand, through the camera, all on your
-  computer
 - Reader mode: a video turned into a page of text, the phrase being said lit up
 - Voice commands
 - Your own player skins on any site, so the skins people made for the Video.js challenge can live on every video
@@ -57,6 +61,8 @@ Ideas for packs and skins, bugs, pull requests: all welcome. See [CONTRIBUTING.m
 - The [Video.js Skins Design Challenge](https://contra.com/community/topic/videojsskinschallenge) on Contra, by
   Video.js and Mux: where the idea of a player for every use case came from.
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson (OFL-1.1).
+- [MediaPipe Gesture Recognizer](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer)
+  by Google (Apache-2.0).
 
 ## License
 

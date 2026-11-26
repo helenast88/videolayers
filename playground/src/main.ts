@@ -26,4 +26,4 @@ fetchCurrentStreamingFx.use(() => new Playground());
 // The same entry the extension's content script loads
 import("@pages/content/main");
 // VideoLayer: the site's pack, as src/pages/content/index.ts loads it
-import("@src/videolayer/init");
+import("@src/videolayer/init").then(({ initPacks }) => initPacks(location.host));

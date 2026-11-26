@@ -3,41 +3,52 @@ import { parse } from "subtitle";
 
 import { esSubsChanged } from "@src/models/subs";
 import { esRenderSetings } from "@src/models/settings";
-import type { TSubsTrack } from "@src/models/types";
+import type { Captions, TSubsTrack } from "@src/models/types";
+import { getCurrentVideoFx } from "@src/models/videos";
 import { languageFromTrack } from "@src/utils/languages";
 import Service from "./service";
 
 type TSubtitlesGroup = Record<string, { language?: string; forced?: boolean; uri: string }>;
+type TPlayerState = {
+  source: string;
+  label: string;
+  tracks: { label: string; language?: string; kind: string; src?: string }[];
+  cues: Captions;
+};
+
+const isKinoHost = () => ["kinopub.net", "kino.watch", "kinopub.cc"].includes(location.hostname);
+const findPlayer = () =>
+  document.querySelector<HTMLElement>("media-player") ?? document.querySelector<HTMLElement>("#player");
 
 class KinoPub implements Service {
   name = "kinopub";
 
   private videoPlaylistUrl: string | undefined;
-  private subsName: string | undefined;
-
-  constructor() {
-    this.handleKinopubFirstFrame = this.handleKinopubFirstFrame.bind(this);
-    this.handleKinopubCaptionsChanged = this.handleKinopubCaptionsChanged.bind(this);
-  }
+  private state: TPlayerState | null = null;
+  private slot: HTMLElement | null = null;
+  private requestedCaptions = false;
 
   public init(): void {
-    console.debug("++++++++++++ KINOPUB INIT ++++++++++++");
-    this.injectScript();
-
-    window.addEventListener("kinopubFirstFrame", this.handleKinopubFirstFrame as EventListener);
-    window.addEventListener("kinopubCaptionsChanged", this.handleKinopubCaptionsChanged as EventListener);
+    window.addEventListener("videolayersKinoReady", this.requestCaptions);
+    window.addEventListener("videolayersKinoState", this.handlePlayerState);
+    window.dispatchEvent(new Event("videolayersKinoSnapshot"));
+    // The mirrors ship the bridge as a MAIN-world content script. Custom KinoPub instances use the same bridge.
+    if (!isKinoHost()) this.injectScript();
   }
 
   public async getSubs(label: string) {
     if (!label) return parse("");
+    if (label === this.state?.label && this.state.cues.length) return this.state.cues;
+    const trackSrc = this.state?.tracks.find((track) => track.label === label)?.src;
+    if (trackSrc && !/\.m3u8(?:[?#]|$)/i.test(trackSrc)) {
+      const response = await fetch(new URL(trackSrc, location.href));
+      if (response.ok) return parse(await response.text());
+    }
     if (!this.videoPlaylistUrl) return parse("");
 
-    const cdnHostName = new URL(this.videoPlaylistUrl)?.hostname ?? "cdn-azure.net";
     const subsSegments = await this.getSubtitlesGroup();
-
-    const uri = isValidHttpsUrl(subsSegments[label].uri)
-      ? subsSegments[label].uri
-      : `https://${cdnHostName}${subsSegments[label].uri}`;
+    if (!subsSegments[label]?.uri) return parse("");
+    const uri = new URL(subsSegments[label].uri, this.videoPlaylistUrl);
     const subsSegmentsResp = await fetch(uri);
     const subsSegmentsData = await subsSegmentsResp.text();
 
@@ -45,21 +56,30 @@ class KinoPub implements Service {
     subsSegmentsParser.push(subsSegmentsData);
     subsSegmentsParser.end();
 
-    const segmentUri = subsSegmentsParser.manifest.segments[0].uri;
+    const segment = subsSegmentsParser.manifest.segments[0]?.uri;
+    if (!segment) return parse(subsSegmentsData);
+    const segmentUri = new URL(segment, uri).href;
     const subPath = segmentUri.match(/.*\/hls\/(.*)\/seg.*/)?.[1];
+    if (!subPath) return parse("");
     const subUri = `${new URL(segmentUri).origin}/pd/${subPath}`;
 
     const subsResp = await fetch(subUri);
     const subsData = await subsResp.text();
 
     const subs = parse(subsData);
-
+    if (subs.length && label === this.state?.label) document.body.classList.add("vl-kinopub-captions");
     return subs;
   }
 
   // The subtitles of the HLS manifest; their names are the labels the player shows
   public async getSubsTracks(): Promise<TSubsTrack[]> {
-    if (!this.videoPlaylistUrl) return [];
+    const available = (this.state?.tracks ?? []).flatMap(({ label, language: code, kind }): TSubsTrack[] => {
+      const language = languageFromTrack(code, label);
+      if (!language) return [];
+      const trackKind = /forced|форс/i.test(label) ? "forced" : kind === "captions" ? "cc" : "subtitles";
+      return [{ label, language, kind: trackKind, name: label }];
+    });
+    if (available.length || !this.videoPlaylistUrl) return available;
     const group = await this.getSubtitlesGroup();
     return Object.entries(group).flatMap(([name, entry]): TSubsTrack[] => {
       const language = languageFromTrack(entry.language, name);
@@ -74,63 +94,86 @@ class KinoPub implements Service {
     const parser = new Parser();
     parser.push(await resp.text());
     parser.end();
-    return (parser.manifest.mediaGroups?.SUBTITLES?.sub ?? {}) as TSubtitlesGroup;
+    return Object.assign({}, ...Object.values(parser.manifest.mediaGroups?.SUBTITLES ?? {})) as TSubtitlesGroup;
   }
 
   public getSubsContainer() {
     // Try Vidstack player first, then fallback to old #player selector
-    const selector = document.querySelector("media-player") || document.querySelector("#player");
+    const selector = findPlayer();
     if (selector === null) throw new Error("Subtitles container not found");
     return selector as HTMLElement;
   }
 
-  public getSettingsButtonContainer() {
-    // Try multiple selectors for Vidstack controls
-    // Vidstack controls are typically inside media-controls with media-controls-group
-    const selector = document.querySelector(".control-button.btn-settings");
+  public getVideo() {
+    const player = findPlayer();
+    return player?.querySelector("video") ?? player?.shadowRoot?.querySelector("video") ?? null;
+  }
 
-    if (selector === null) throw new Error("Settings button container not found");
-    return selector as HTMLElement;
+  public getSettingsButtonContainer() {
+    const player = this.getSubsContainer();
+    const gear = player.querySelector<HTMLElement>(".control-button.btn-settings");
+    if (gear) return gear;
+    if (!this.slot?.isConnected) {
+      this.slot = document.createElement("span");
+      this.slot.className = "vl-kinopub-slot";
+      this.slot.hidden = true;
+      player.append(this.slot);
+    }
+    return this.slot;
   }
 
   public getSettingsContentContainer() {
-    const selector = document.querySelector("#player");
-    if (selector === null) throw new Error("Settings content container not found");
-    return selector as HTMLElement;
+    return this.getSubsContainer();
   }
 
   public isOnFlight() {
     return false;
   }
 
-  private handleKinopubFirstFrame(event: CustomEvent) {
-    this.videoPlaylistUrl = event.detail;
-    if (this.subsName) {
-      esSubsChanged(this.subsName);
-    }
-    esRenderSetings();
+  setSiteCaptions(enabled: boolean) {
+    if (enabled === this.requestedCaptions) return;
+    this.requestedCaptions = enabled;
+    this.requestCaptions();
   }
 
-  private handleKinopubCaptionsChanged(event: CustomEvent) {
-    this.subsName = event.detail;
-    esSubsChanged(this.subsName);
-    esRenderSetings();
-  }
+  private requestCaptions = () => {
+    window.dispatchEvent(new CustomEvent("videolayersKinoCaptions", { detail: this.requestedCaptions ? "on" : "off" }));
+  };
+
+  private handlePlayerState = (event: Event) => {
+    const player = findPlayer();
+    if (!player) return;
+    let next: TPlayerState;
+    try {
+      next = JSON.parse((event as CustomEvent<string>).detail);
+      if (
+        typeof next.source !== "string" ||
+        typeof next.label !== "string" ||
+        !Array.isArray(next.cues) ||
+        !Array.isArray(next.tracks)
+      )
+        return;
+    } catch {
+      return;
+    }
+    const previous = this.state;
+    const needsSettings = !player.querySelector(".es-settings");
+    this.state = next;
+    this.videoPlaylistUrl = /\.m3u8(?:[?#]|$)/i.test(next.source)
+      ? new URL(next.source, location.href).href
+      : undefined;
+    if (needsSettings) esRenderSetings();
+    else if (previous?.source !== next.source) getCurrentVideoFx();
+    if (!needsSettings && JSON.stringify(next) === JSON.stringify(previous)) return;
+    document.body.classList.toggle("vl-kinopub-captions", next.cues.length > 0);
+    esSubsChanged(next.label);
+  };
 
   private injectScript() {
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL("assets/js/kinopub.js");
     script.type = "module";
     document.head.prepend(script);
-  }
-}
-
-function isValidHttpsUrl(urlString: string): boolean {
-  try {
-    const url = new URL(urlString);
-    return url.protocol === "https:";
-  } catch {
-    return false;
   }
 }
 

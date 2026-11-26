@@ -1,10 +1,7 @@
-console.log("content loaded");
+// Chrome runs the entry as a classic script. The guard also covers immediate injection on a newly enabled site.
+const page = globalThis as typeof globalThis & { videoLayersLoaded?: boolean };
 
-/**
- * @description
- * Chrome extensions don't support modules in content scripts.
- */
-import("@src/models/init");
-import("./main");
-// VideoLayer: the site's pack (src/videolayer)
-import("@src/videolayer/init");
+if (!page.videoLayersLoaded) {
+  page.videoLayersLoaded = true;
+  void import("./start");
+}

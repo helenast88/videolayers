@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hand gestures · VideoLayers</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hand gestures</h1>
+      <p>Hold one hand in view for about half a second.</p>
+      <dl>
+        <div>
+          <dt>Open palm</dt>
+          <dd>Pause</dd>
+        </div>
+        <div>
+          <dt>Thumbs up</dt>
+          <dd>Play</dd>
+        </div>
+        <div>
+          <dt>Two fingers in a V</dt>
+          <dd>Back to start</dd>
+        </div>
+        <div>
+          <dt>Closed fist</dt>
+          <dd>Switch between 0.5× and 1×</dd>
+        </div>
+      </dl>
+      <video aria-label="Camera preview" autoplay muted playsinline hidden></video>
+      <button id="camera" type="button" disabled>Start camera</button>
+      <p id="status" role="status">Connecting to your video…</p>
+      <p class="privacy">Camera frames stay on this device.</p>
+    </main>
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

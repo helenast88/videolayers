@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { FEATURES, isFeatureOn, type TFeatureKey, type TPack } from "@src/videolayer/packs";
+import { FEATURES, isBuiltInPack, isFeatureOn, type TFeatureKey, type TPack } from "@src/videolayer/packs";
 import { deleteCustomPack, readAllPacks, saveCustomPack } from "@src/videolayer/customPacks";
-import { readSitePack, siteOf, writeSitePack } from "@src/videolayer/sitePacks";
+import { readSitePack, siteOf, writeSitePacks } from "@src/videolayer/sitePacks";
 
-// VideoLayer: the pack for the site of the current tab, and the editor of the user's own packs. Picking a pack saves
-// it for the site; the page applies it at once (src/videolayer/init.ts) and on every later visit.
+// VideoLayers: the packs for the site of the current tab, several at once, and the editor of the user's own packs.
+// Ticking a pack saves it for the site; the page applies the packs at once (src/videolayer/init.ts) and on every later
+// visit.
 
 type TDraft = { id?: string; name: string; features: TFeatureKey[] };
 
@@ -25,11 +26,13 @@ const PackEditor = ({
   draft,
   onSave,
   onDelete,
+  deleteLabel = "Delete",
   onCancel,
 }: {
   draft: TDraft;
   onSave: (draft: TDraft) => void;
   onDelete?: () => void;
+  deleteLabel?: string;
   onCancel: () => void;
 }) => {
   const [name, setName] = useState(draft.name);
@@ -65,7 +68,7 @@ const PackEditor = ({
       <div className="vl-actions">
         {onDelete && (
           <button type="button" className="vl-button vl-button-danger" onClick={onDelete}>
-            Delete
+            {deleteLabel}
           </button>
         )}
         <span className="vl-spacer" />
@@ -83,7 +86,8 @@ const PackEditor = ({
 const SitePacks = () => {
   const [site, setSite] = useState<string | null>(null);
   const [packs, setPacks] = useState<TPack[]>([]);
-  const [picked, setPicked] = useState<string | null>(null);
+  // The packs on for this site; several can be on at once
+  const [picked, setPicked] = useState<string[]>([]);
   const [draft, setDraft] = useState<TDraft | null>(null);
 
   const load = async () => setPacks(await readAllPacks());
@@ -97,12 +101,18 @@ const SitePacks = () => {
     });
   }, []);
 
-  const pick = async (packId: string | null) => {
-    setPicked(packId);
-    if (site) await writeSitePack(site, packId);
+  const save = async (ids: string[]) => {
+    setPicked(ids);
+    if (site) await writeSitePacks(site, ids);
   };
+  // "No pack" takes them all away; a pack turns on or off on its own
+  const toggle = (packId: string | null) =>
+    save(packId === null ? [] : picked.includes(packId) ? picked.filter((id) => id !== packId) : [...picked, packId]);
 
   if (draft) {
+    // A built-in pack can be changed and then reset to how it ships; the user's own packs can be deleted
+    const builtIn = isBuiltInPack(draft.id);
+    const edited = builtIn && packs.some((pack) => pack.id === draft.id && pack.edited);
     return (
       <PackEditor
         draft={draft}
@@ -112,13 +122,14 @@ const SitePacks = () => {
           await load();
           setDraft(null);
           // A new pack is made for the site it's made on
-          if (!next.id) await pick(pack.id);
+          if (!next.id) await save([...picked, pack.id]);
         }}
+        deleteLabel={builtIn ? "Reset" : "Delete"}
         onDelete={
-          draft.id
+          draft.id && (!builtIn || edited)
             ? async () => {
                 await deleteCustomPack(draft.id!);
-                if (picked === draft.id) await pick(null);
+                if (!builtIn) await save(picked.filter((id) => id !== draft.id));
                 await load();
                 setDraft(null);
               }
@@ -138,24 +149,24 @@ const SitePacks = () => {
       <div id="vl-packs-title" className="vl-packs-title">
         {site ? (
           <>
-            Pack for <span>{site}</span>
+            Packs for <span>{site}</span>
           </>
         ) : (
           "Packs"
         )}
       </div>
-      <div role="radiogroup" aria-labelledby="vl-packs-title">
+      <div role="group" aria-labelledby="vl-packs-title">
         {options.map((option) => {
-          const checked = picked === option.id;
+          const checked = option.id === null ? picked.length === 0 : picked.includes(option.id);
           return (
             <div key={option.id ?? "none"} className="vl-pack-row">
               <button
                 type="button"
-                role="radio"
+                role={option.id === null ? "radio" : "checkbox"}
                 aria-checked={checked}
                 className="vl-pack"
                 disabled={!site}
-                onClick={() => pick(option.id)}
+                onClick={() => toggle(option.id)}
               >
                 <span className={`vl-pack-dot c-${option.color ?? "gray"}`} aria-hidden="true">
                   {checked && <Tick />}
@@ -165,7 +176,7 @@ const SitePacks = () => {
                   <span className="vl-pack-description">{option.description}</span>
                 </span>
               </button>
-              {option.custom && (
+              {"settings" in option && (
                 <button
                   type="button"
                   className="vl-edit"

@@ -17,6 +17,7 @@ export type TPackSettings = {
   siteCaptions?: boolean;
   // VideoLayers' exercise controls over the video: mark where an exercise starts, jump back, slow down (exercise.ts)
   exercise?: boolean;
+  gestures?: boolean;
 };
 
 // A pack's label colour. The popup's WebEmber look is monochrome and doesn't show it; it's kept for the player's
@@ -32,22 +33,34 @@ export type TPack = {
   color?: TPackColor;
   // Made by the user: can be changed and deleted
   custom?: boolean;
+  // A built-in pack the user changed: can be reset to how it ships
+  edited?: boolean;
 };
 
 // The features a pack can switch, as the pack editor lists them: EasySubs settings, and VideoLayers' own exercise
 // controls.
-export type TFeatureKey = "secondLine" | "moveBySubs" | "autoPause" | "progressBar" | "siteCaptions" | "exercise";
+export type TFeatureKey =
+  "secondLine" | "moveBySubs" | "autoPause" | "progressBar" | "siteCaptions" | "exercise" | "gestures";
 
 export const FEATURES: { key: TFeatureKey; name: string; description: string }[] = [
   { key: "secondLine", name: "Second line", description: "The subtitles in your language under the original" },
   { key: "moveBySubs", name: "Phrase keys", description: "← → jump to the previous or next phrase, ↓ repeats it" },
   { key: "autoPause", name: "Pause after each phrase", description: "Time to repeat it before the next one" },
   { key: "progressBar", name: "Phrase strip", description: "The phrases as marks under the player" },
-  { key: "siteCaptions", name: "Site's captions on", description: "Turns on YouTube's CC, the source of the lines" },
+  {
+    key: "siteCaptions",
+    name: "Site's captions on",
+    description: "Uses the video's own closed captions or subtitle track",
+  },
   {
     key: "exercise",
     name: "Exercise controls",
     description: "Mark where an exercise starts, jump back to it, slow down to 0.25×",
+  },
+  {
+    key: "gestures",
+    name: "Hand gestures",
+    description: "Control playback with your camera, processed on this device",
   },
 ];
 
@@ -62,9 +75,9 @@ export const PACKS: TPack[] = [
   {
     id: "sport",
     name: "Sport",
-    description: "Mark where an exercise starts, jump back to it, slow down to 0.25×",
+    description: "Mark a start, replay it, slow down, or control playback with hand gestures",
     // Subtitles stay as the user has them
-    settings: { exercise: true },
+    settings: { exercise: true, gestures: true },
     color: "green",
   },
 ];
@@ -82,6 +95,7 @@ export const settingsFromFeatures = (on: TFeatureKey[]): TPackSettings => ({
   progressBar: on.includes("progressBar"),
   siteCaptions: on.includes("siteCaptions"),
   exercise: on.includes("exercise"),
+  gestures: on.includes("gestures"),
 });
 
 // What a pack does, in words, from its features
@@ -98,3 +112,31 @@ export const nextPackColor = (packs: TPack[]): TPackColor => {
   const used = new Set(packs.map((pack) => pack.color));
   return PACK_COLORS.find((color) => !used.has(color)) ?? PACK_COLORS[packs.length % PACK_COLORS.length];
 };
+
+// Several packs on one site work as one: a feature is on when any of them turns it on, off when one names it and none
+// turns it on, and left as the user has it when none names it.
+export const combinePacks = (packs: TPack[]): TPack | undefined => {
+  if (packs.length <= 1) return packs[0];
+  const settings: TPackSettings = {};
+  for (const pack of packs) {
+    for (const [key, value] of Object.entries(pack.settings) as [
+      keyof TPackSettings,
+      TPackSettings[keyof TPackSettings],
+    ][]) {
+      if (key === "secondLine") {
+        settings.secondLine = settings.secondLine === "translation" || value === "translation" ? "translation" : "off";
+      } else {
+        (settings as Record<string, boolean>)[key] =
+          (settings as Record<string, boolean>)[key] === true || value === true;
+      }
+    }
+  }
+  return {
+    id: packs.map((pack) => pack.id).join("+"),
+    name: packs.map((pack) => pack.name).join(" + "),
+    description: describeFeatures(settings),
+    settings,
+  };
+};
+
+export const isBuiltInPack = (id: string | undefined) => PACKS.some((pack) => pack.id === id);

@@ -18,8 +18,6 @@ import { addTranscriptKeyListeners } from "@src/utils/transcriptKeys";
 
 refreshOnUpdate("pages/content");
 
-fetchCurrentStreamingFx();
-
 const handleTimeUpdate = () => {
   videoTimeUpdate();
 };
@@ -61,6 +59,36 @@ $video.watch((video) => {
 
 let unwatchRenderSettings: (() => void) | undefined;
 
+esSubsChanged.watch((language) => {
+  console.log("Event:", "esSubsChanged");
+  console.log("Language:", language);
+  removeNodes("#es, #es-top, #es-transcript");
+  const subsContainer = $streaming.getState().getSubsContainer();
+  const subsNode = document.createElement("div");
+  subsNode.id = "es";
+  subsContainer?.appendChild(subsNode);
+  // The second subtitle line's own block, for its Top position
+  const topNode = document.createElement("div");
+  topNode.id = "es-top";
+  subsContainer?.appendChild(topNode);
+  renderRoot(subsNode, <Subs topContainer={topNode} />);
+  // Every line, to jump to and search, see src/models/transcript
+  const transcriptNode = document.createElement("div");
+  transcriptNode.id = "es-transcript";
+  subsContainer?.appendChild(transcriptNode);
+  renderRoot(transcriptNode, <Transcript />);
+
+  if (!$streaming.getState().isOnFlight()) {
+    removeNodes(".es-progress-bar");
+    const progressBarNode = document.createElement("div");
+    progressBarNode.classList.add("es-progress-bar");
+    subsContainer?.appendChild(progressBarNode);
+    renderRoot(progressBarNode, <ProgressBar />);
+  }
+});
+
+fetchCurrentStreamingFx();
+
 $streaming.watch((streaming) => {
   console.log("streaming changed", streaming);
 
@@ -97,32 +125,4 @@ $streaming.watch((streaming) => {
   });
 
   streaming.init();
-});
-
-esSubsChanged.watch((language) => {
-  console.log("Event:", "esSubsChanged");
-  console.log("Language:", language);
-  removeNodes("#es, #es-top, #es-transcript");
-  const subsContainer = $streaming.getState().getSubsContainer();
-  const subsNode = document.createElement("div");
-  subsNode.id = "es";
-  subsContainer?.appendChild(subsNode);
-  // The second subtitle line's own block, for its Top position
-  const topNode = document.createElement("div");
-  topNode.id = "es-top";
-  subsContainer?.appendChild(topNode);
-  renderRoot(subsNode, <Subs topContainer={topNode} />);
-  // Every line, to jump to and search, see src/models/transcript
-  const transcriptNode = document.createElement("div");
-  transcriptNode.id = "es-transcript";
-  subsContainer?.appendChild(transcriptNode);
-  renderRoot(transcriptNode, <Transcript />);
-
-  if (!$streaming.getState().isOnFlight()) {
-    removeNodes(".es-progress-bar");
-    const progressBarNode = document.createElement("div");
-    progressBarNode.classList.add("es-progress-bar");
-    subsContainer?.appendChild(progressBarNode);
-    renderRoot(progressBarNode, <ProgressBar />);
-  }
 });

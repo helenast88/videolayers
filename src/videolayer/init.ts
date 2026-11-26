@@ -1,77 +1,94 @@
 import { $streaming } from "@src/models/streamings";
+import { $video } from "@src/models/videos";
 import { applyPackSettings, turnOnYoutubeCaptions } from "./apply";
-import { mountExercise, unmountExercise } from "./exercise";
 import { onCustomPacksChanged, readAllPacks } from "./customPacks";
-import { findPack, type TPack } from "./packs";
+import { mountExercise, unmountExercise } from "./exercise";
+import { watchMainVideo } from "./mainVideo";
+import { combinePacks, findPack, type TPack } from "./packs";
 import { onSitePacksChanged, readSitePack } from "./sitePacks";
 import { listenForTabListening } from "./tabListening";
+import { createVideoOverlay } from "./videoOverlay";
 
-// Applies the site's pack once the page's service is known. EasySubs restores its settings with an async
-// chrome.storage read made when its models load; our reads are made later, so they answer after theirs and the
-// pack isn't overwritten by the restored values.
-const site = location.host;
-let current: TPack | undefined;
+export function initPacks(site: string) {
+  let current: TPack | undefined;
+  let started = false;
+  let refreshId = 0;
+  let watchingPlayer: (() => void) | undefined;
+  let mountedVideo: HTMLVideoElement | null = null;
+  let mountedContainer: HTMLElement | null = null;
+  let overlay: ReturnType<typeof createVideoOverlay> | undefined;
 
-// The video and the player box the exercise bar goes in: the service's subtitle container (inside the player, so it
-// stays in fullscreen), else the video's parent. Waits for the player to appear, up to 10 s.
-const findPlayer = async (): Promise<{ video: HTMLVideoElement; container: HTMLElement } | null> => {
-  for (let tries = 0; tries < 20; tries++) {
-    const video = document.querySelector("video");
+  const placeControls = (video: HTMLVideoElement | null) => {
+    let container: HTMLElement | null = null;
     if (video) {
-      let container: HTMLElement | null = null;
+      const service = $streaming.getState();
       try {
-        container = $streaming.getState().getSubsContainer();
+        const target = service.getSubsContainer();
+        if (service.getVideo || (target && target !== document.body && target.contains(video))) container = target;
       } catch {
-        container = null;
+        // Some services render the player container after the video.
       }
-      container ??= video.parentElement;
-      if (container) return { video, container };
+      if (!container) {
+        overlay ??= createVideoOverlay();
+        overlay.update(video);
+        container = overlay.element;
+      }
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  return null;
-};
+    if (container !== overlay?.element) overlay?.update(null);
+    if (mountedVideo === video && mountedContainer === container) return;
+    unmountExercise();
+    mountedVideo = video;
+    mountedContainer = container;
+    if (video && container) mountExercise(video, container, current?.settings);
+  };
 
-const showExercise = async (on: boolean) => {
-  unmountExercise();
-  if (!on) return;
-  const player = await findPlayer();
-  if (player && current?.settings.exercise) mountExercise(player.video, player.container);
-};
+  const restartControls = () => {
+    watchingPlayer?.();
+    watchingPlayer = undefined;
+    placeControls(null);
+    if (current?.settings.exercise || current?.settings.gestures) {
+      watchingPlayer = $streaming.getState().getVideo ? $video.watch(placeControls) : watchMainVideo(placeControls);
+    }
+  };
 
-const apply = (pack: TPack | undefined) => {
-  current = pack;
-  showExercise(!!pack?.settings.exercise);
-  if (!pack) return;
-  applyPackSettings(pack);
-  if (pack.settings.siteCaptions && $streaming.getState().name === "youtube") {
-    turnOnYoutubeCaptions();
-  }
-};
+  const updateCaptions = () => {
+    const service = $streaming.getState();
+    service.setSiteCaptions?.(!!current?.settings.siteCaptions);
+    if (current?.settings.siteCaptions && service.name === "youtube") void turnOnYoutubeCaptions();
+  };
 
-// The site's pack as it is saved now; applied when it's another pack or the same pack changed in the editor
-const refresh = async () => {
-  const pack = findPack(await readSitePack(site), await readAllPacks());
-  if (JSON.stringify(pack) !== JSON.stringify(current)) apply(pack);
-};
+  const refresh = async () => {
+    const request = ++refreshId;
+    const [all, selected] = await Promise.all([readAllPacks(), readSitePack(site)]);
+    if (request !== refreshId) return;
+    const pack = combinePacks(selected.map((id) => findPack(id, all)).filter((one): one is TPack => !!one));
+    if (JSON.stringify(pack) === JSON.stringify(current)) return;
+    const previous = current;
+    current = pack;
+    if (pack) applyPackSettings(pack);
+    if (previous?.settings.siteCaptions !== pack?.settings.siteCaptions) updateCaptions();
+    if (
+      previous?.settings.exercise !== pack?.settings.exercise ||
+      previous?.settings.gestures !== pack?.settings.gestures
+    ) {
+      restartControls();
+    }
+  };
 
-let started = false;
-$streaming.watch((streaming) => {
-  if (started || streaming.name === "stub") return;
-  started = true;
-  refresh();
-});
-
-// A pack picked, taken away or edited in the popup applies without reloading the page
-onSitePacksChanged(() => started && refresh());
-onCustomPacksChanged(() => started && refresh());
-
-// YouTube swaps videos without loading a page; the next one may start with captions off
-document.addEventListener("yt-navigate-finish", () => {
-  if (current?.settings.siteCaptions && $streaming.getState().name === "youtube") {
-    turnOnYoutubeCaptions();
-  }
-});
-
-// The toolbar window asks whether the tab's sound is needed for the AI subtitles (src/pages/popup/TabListening.tsx)
-listenForTabListening();
+  $streaming.watch((service) => {
+    if (service.name === "stub") return;
+    if (started) {
+      if (current) {
+        updateCaptions();
+        restartControls();
+      }
+      return;
+    }
+    started = true;
+    void refresh();
+  });
+  onSitePacksChanged(() => started && refresh());
+  onCustomPacksChanged(() => started && refresh());
+  document.addEventListener("yt-navigate-finish", updateCaptions);
+  listenForTabListening();
+}

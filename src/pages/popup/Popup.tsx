@@ -1,42 +1,58 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { sitePermission } from "@src/videolayer/sitePacks";
 import SitePacks from "./SitePacks";
 import Credits from "./Credits";
 import TabListening from "./TabListening";
 
-async function getTab() {
-  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  return tabs[0];
-}
-
 const Popup = () => {
+  const [tab, setTab] = useState<chrome.tabs.Tab>();
+  const [accessMessage, setAccessMessage] = useState("");
+  useEffect(() => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }).then(([active]) => setTab(active));
+  }, []);
+  const origin = sitePermission(tab?.url);
   const handleRequestPermissions = async () => {
-    const tab = await getTab();
-    const isGranted = await chrome.permissions.request({
-      permissions: ["scripting", "storage", "activeTab"],
-      origins: [tab.url],
-    });
-    if (!isGranted) return;
+    if (!origin || tab?.id === undefined) return;
+    const tabId = tab.id;
+    setAccessMessage("");
+    try {
+      if (!(await chrome.permissions.request({ origins: [origin] }))) {
+        setAccessMessage("Allow site access to use VideoLayers here.");
+        return;
+      }
+    } catch {
+      setAccessMessage("Chrome does not allow VideoLayers on this page.");
+      return;
+    }
 
     // Inject into the current tab without reloading, so SPA players
-    // (e.g. Jellyfin) don't lose their playback state. Future page loads
-    // are handled automatically by webext-dynamic-content-scripts.
-    const [contentScript] = chrome.runtime.getManifest().content_scripts ?? [];
-    try {
-      if (contentScript?.css?.length) {
-        await chrome.scripting.insertCSS({
-          target: { tabId: tab.id },
-          files: contentScript.css,
-        });
+    // don't lose their playback state. The background registers scripts for future page loads.
+    const scripts = chrome.runtime.getManifest().content_scripts ?? [];
+    const [contentScript] = scripts;
+    const kinoBridge = scripts.find(
+      (script) => script.matches?.includes(origin) && script.js?.includes("assets/js/kinopub.js"),
+    );
+    const inject = async (allFrames: boolean) => {
+      const target = { tabId, allFrames };
+      if (contentScript?.css?.length) await chrome.scripting.insertCSS({ target, files: contentScript.css });
+      if (contentScript?.js?.length) await chrome.scripting.executeScript({ target, files: contentScript.js });
+      if (kinoBridge?.js?.length) {
+        await chrome.scripting.executeScript({ target, files: kinoBridge.js, world: "MAIN" });
       }
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: contentScript.js,
-      });
-      window.close();
+    };
+    try {
+      await inject(true);
     } catch {
-      // Fallback: reload if programmatic injection fails
-      chrome.tabs.reload(tab.id);
+      try {
+        // Chrome may reject an all-frame injection when a third-party frame lacks site access.
+        await inject(false);
+        setAccessMessage("Site enabled. Reload the page if its embedded player is missing.");
+      } catch {
+        setAccessMessage("Site access was granted. Reload this page to start VideoLayers.");
+      }
+      return;
     }
+    window.close();
   };
 
   // VideoLayer: no links to EasySubs' site, FAQ or support; what it's made with is on the Credits page
@@ -55,9 +71,10 @@ const Popup = () => {
       <div className="header">VideoLayers</div>
       <SitePacks />
       <TabListening />
-      <button type="button" className="vl-enable" onClick={handleRequestPermissions}>
+      <button type="button" className="vl-enable" onClick={handleRequestPermissions} disabled={!origin}>
         Enable on this site
       </button>
+      {accessMessage && <p role="status">{accessMessage}</p>}
       <menu>
         <li onClick={() => setCreditsOpen(true)}>
           <a className="vl-credits-link">

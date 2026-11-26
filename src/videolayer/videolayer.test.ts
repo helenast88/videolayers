@@ -9,9 +9,9 @@ import {
   enableToggleChanged,
 } from "@src/models/settings";
 import { applyPackSettings, turnOnYoutubeCaptions } from "./apply";
-import { describeFeatures, FEATURES, findPack, isFeatureOn, PACKS, settingsFromFeatures } from "./packs";
+import { combinePacks, describeFeatures, FEATURES, findPack, isFeatureOn, PACKS, settingsFromFeatures } from "./packs";
 import { deleteCustomPack, readAllPacks, readCustomPacks, saveCustomPack } from "./customPacks";
-import { readSitePack, readSitePacks, siteOf, SITE_PACKS_KEY, writeSitePack } from "./sitePacks";
+import { readSitePack, readSitePacks, siteOf, SITE_PACKS_KEY, writeSitePacks } from "./sitePacks";
 
 describe("packs", () => {
   it("have unique ids and are found by them", () => {
@@ -31,14 +31,19 @@ describe("site packs", () => {
     expect(siteOf("not a url")).toBeNull();
   });
 
-  it("are saved per site and taken away with null", async () => {
-    await writeSitePack("www.youtube.com", "language");
-    await writeSitePack("vimeo.com", "language");
-    expect(await readSitePack("www.youtube.com")).toBe("language");
+  it("are saved per site, several at once, and taken away with an empty list", async () => {
+    await writeSitePacks("www.youtube.com", ["language", "sport", "language"]);
+    await writeSitePacks("vimeo.com", ["language"]);
+    expect(await readSitePack("www.youtube.com")).toEqual(["language", "sport"]);
 
-    await writeSitePack("www.youtube.com", null);
-    expect(await readSitePack("www.youtube.com")).toBeNull();
-    expect(await readSitePacks()).toEqual({ "vimeo.com": "language" });
+    await writeSitePacks("www.youtube.com", []);
+    expect(await readSitePack("www.youtube.com")).toEqual([]);
+    expect(await readSitePacks()).toEqual({ "vimeo.com": ["language"] });
+  });
+
+  it("read a single pack saved before several were possible", async () => {
+    await chrome.storage.local.set({ [SITE_PACKS_KEY]: { "www.youtube.com": "language", "x.com": 5 } });
+    expect(await readSitePacks()).toEqual({ "www.youtube.com": ["language"] });
   });
 
   it("read as none when nothing or something odd is stored", async () => {
@@ -115,6 +120,7 @@ describe("the user's own packs", () => {
       progressBar: false,
       siteCaptions: false,
       exercise: false,
+      gestures: false,
     });
     expect(FEATURES.filter(({ key }) => isFeatureOn(settings, key)).map(({ key }) => key)).toEqual([
       "secondLine",
@@ -145,6 +151,18 @@ describe("the user's own packs", () => {
     expect(findPack("language")?.color).toBe("blue");
     expect(findPack("sport")?.color).toBe("green");
     expect([first.color, second.color]).toEqual(["purple", "orange"]);
+  });
+
+  it("include built-in packs the user changed, which reset to how they ship", async () => {
+    await saveCustomPack({ id: "sport", name: "Gym", features: ["exercise", "progressBar"] });
+    const all = await readAllPacks();
+    const sport = findPack("sport", all)!;
+    expect(sport).toMatchObject({ name: "Gym", edited: true, custom: false, color: "green" });
+    expect(all.filter((pack) => pack.id === "sport")).toHaveLength(1);
+    expect(all.map((pack) => pack.id).slice(0, 2)).toEqual(["language", "sport"]);
+
+    await deleteCustomPack("sport");
+    expect(findPack("sport", await readAllPacks())).toEqual(findPack("sport"));
   });
 
   it("are found by id among all packs", async () => {
@@ -217,5 +235,27 @@ describe("exercise controls", () => {
 
     unmountExercise();
     expect(container.querySelector(".vl-exercise")).toBeNull();
+  });
+});
+
+describe("several packs on one site", () => {
+  it("work as one: a feature is on when any pack turns it on", () => {
+    const sportOnly = { id: "s", name: "S", description: "", settings: settingsFromFeatures(["exercise"]) };
+    const combined = combinePacks([findPack("language")!, sportOnly])!;
+    expect(combined.name).toBe("Language + S");
+    expect(combined.settings).toMatchObject({
+      enabled: true,
+      secondLine: "translation",
+      moveBySubs: true,
+      siteCaptions: true,
+      exercise: true,
+      autoPause: false,
+      progressBar: false,
+    });
+  });
+
+  it("leave a single pack as it is, and none as none", () => {
+    expect(combinePacks([findPack("sport")!])).toBe(findPack("sport"));
+    expect(combinePacks([])).toBeUndefined();
   });
 });

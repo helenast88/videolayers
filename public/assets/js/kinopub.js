@@ -1,67 +1,75 @@
-// Wait for Vidstack player to be available
-function initEasySubsKinopub() {
-  const player = document.querySelector("media-player");
+// Read the same track that Vidstack is displaying, including when captions were on before the bridge loaded.
+(() => {
+  if (window.videoLayersKinoBridge) return;
+  window.videoLayersKinoBridge = true;
 
-  if (!player) {
-    // Retry after a short delay if player not found yet
-    setTimeout(initEasySubsKinopub, 500);
-    return;
+  let previousPlayer;
+  let previousTrack;
+  let previousSignature;
+  let captionsRequested = false;
+  let autoEnabledFor;
+
+  const labelOf = (track) => track?.label || track?.language || "";
+  const isSubtitle = (track) => track.kind === "subtitles" || track.kind === "captions";
+
+  function publish(force = false) {
+    const player = document.querySelector("media-player") ?? document.querySelector("#player");
+    if (!player) return;
+    const video = player.querySelector("video");
+    const state = player.state;
+    const src = state?.source?.src ?? video?.currentSrc;
+    const source = typeof src === "string" ? src : "";
+    const tracks = Array.from(state?.textTracks ?? player.textTracks?.toArray?.() ?? video?.textTracks ?? []).filter(
+      isSubtitle,
+    );
+    let active = state?.textTrack ?? tracks.find((track) => track.mode === "showing");
+    if (captionsRequested && (player !== previousPlayer || autoEnabledFor !== source) && tracks.length) {
+      autoEnabledFor = source;
+      if (!active) {
+        active = tracks.find((track) => !/forced|форс/i.test(labelOf(track))) ?? tracks[0];
+        active.mode = "showing";
+      }
+    }
+
+    const cues = active?.cues;
+    const signature = JSON.stringify([
+      source,
+      labelOf(active),
+      cues?.length,
+      cues?.[0]?.startTime,
+      cues?.[cues.length - 1]?.endTime,
+      tracks.map(labelOf),
+    ]);
+    if (!force && player === previousPlayer && active === previousTrack && signature === previousSignature) return;
+    previousPlayer = player;
+    previousTrack = active;
+    previousSignature = signature;
+    const message = {
+      source,
+      label: labelOf(active),
+      tracks: tracks.map((track) => ({
+        label: labelOf(track),
+        language: track.language,
+        kind: track.kind,
+        src: track.src,
+      })),
+      cues: Array.from(cues ?? [], (cue) => ({
+        start: cue.startTime * 1000,
+        end: cue.endTime * 1000,
+        text: typeof cue.text === "string" ? cue.text.replace(/<[^>]*>/g, "").trim() : "",
+      })).filter((cue) => cue.text),
+    };
+    // A string can cross the isolated content-script boundary in Chrome and Firefox.
+    window.dispatchEvent(new CustomEvent("videolayersKinoState", { detail: JSON.stringify(message) }));
   }
 
-  console.debug("EasySubs: Vidstack player found, initializing...");
-
-  // Listen for text track changes (caption/subtitle selection)
-  player.addEventListener("text-track-change", (event) => {
-    const track = event.detail; // TextTrack | null
-    const label = track ? track.label : null;
-    console.debug("EasySubs: Text track changed:", label);
-    window.dispatchEvent(
-      new CustomEvent("kinopubCaptionsChanged", { detail: label }),
-    );
+  window.addEventListener("videolayersKinoSnapshot", () => publish(true));
+  window.addEventListener("videolayersKinoCaptions", (event) => {
+    captionsRequested = event.detail === "on";
+    autoEnabledFor = undefined;
+    publish(true);
   });
-
-  // Listen for when the media can start playing
-  // This fires when the source is loaded and ready
-  player.addEventListener("can-play", () => {
-    const { source } = player.state;
-    const playlistUrl = source?.src;
-    console.debug("EasySubs: Media can play, source:", playlistUrl);
-    if (playlistUrl) {
-      window.dispatchEvent(
-        new CustomEvent("kinopubFirstFrame", { detail: playlistUrl }),
-      );
-    }
-  });
-
-  // Also listen for provider setup as a fallback
-  // This ensures we catch the source even if can-play already fired
-  player.addEventListener("provider-setup", () => {
-    const { source } = player.state;
-    const playlistUrl = source?.src;
-    console.debug("EasySubs: Provider setup, source:", playlistUrl);
-    if (playlistUrl) {
-      window.dispatchEvent(
-        new CustomEvent("kinopubFirstFrame", { detail: playlistUrl }),
-      );
-    }
-  });
-
-  // Listen for source changes (when user switches videos)
-  player.addEventListener("source-change", (event) => {
-    const source = event.detail;
-    const playlistUrl = source?.src;
-    console.debug("EasySubs: Source changed:", playlistUrl);
-    if (playlistUrl) {
-      window.dispatchEvent(
-        new CustomEvent("kinopubFirstFrame", { detail: playlistUrl }),
-      );
-    }
-  });
-}
-
-// Start initialization
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initEasySubsKinopub);
-} else {
-  initEasySubsKinopub();
-}
+  window.setInterval(publish, 500);
+  publish();
+  window.dispatchEvent(new Event("videolayersKinoReady"));
+})();
